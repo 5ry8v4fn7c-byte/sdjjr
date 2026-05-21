@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>时代峰峻四代 · 经纪人模拟器 | 优化随机事件概率</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: linear-gradient(145deg, #0f121c 0%, #1a1e2b 100%);
+            font-family: 'Segoe UI', system-ui, 'Inter', sans-serif;
+            padding: 20px;
+            margin: 0;
+            color: #f0f3fa;
+        }
+        .game-container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: rgba(10, 12, 20, 0.8);
+            backdrop-filter: blur(3px);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 20px 35px -10px black;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .profile-section {
+            background: #0b0e17;
+            border-radius: 1.5rem;
+            padding: 1rem 1.8rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .broker-info {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        .info-card {
+            background: #131826;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: bold;
+        }
+        .info-card span:first-child { color: #9aa4bf; }
+        .info-card span:last-child { color: #ffda88; font-size: 1.2rem; }
+        .action-points {
+            background: #c44569;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .btn {
+            background: #2c6e4f;
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .btn-sm {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+        }
+        .btn-warning { background: #e67e22; }
+        .btn-warning:hover { background: #b45f1b; }
+        .btn-danger { background: #7f2e3e; }
+        .btn-danger:hover { background: #5e1f2c; }
+        .btn-primary { background: #2c6e4f; }
+        .btn-primary:hover { background: #1f533b; transform: scale(0.97);}
+        .btn-start { background: #c44569; font-size: 1rem; padding: 0.6rem 1.5rem; }
+        .btn-start:hover { background: #a53255; }
+        .btn:active { transform: scale(0.96); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .two-columns {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .artists-panel { flex: 2; min-width: 280px; }
+        .operations-panel {
+            flex: 1.2;
+            min-width: 260px;
+            background: #0b0e17b3;
+            border-radius: 1.5rem;
+            padding: 1rem;
+            backdrop-filter: blur(4px);
+        }
+        .artists-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .artist-card {
+            background: #10141f;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            border-left: 5px solid;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 6px 12px -6px black;
+            position: relative;
+        }
+        .artist-card.selected {
+            background: #1e253b;
+            border-left-color: #ffb347;
+            box-shadow: 0 0 0 2px #ffb34755;
+        }
+        .artist-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        .artist-stats {
+            font-size: 0.7rem;
+            margin-top: 0.6rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+        }
+        .stat { background: #00000044; border-radius: 1rem; padding: 0.2rem 0.5rem; }
+        .sat-bar { margin-top: 0.5rem; background: #2f3545; border-radius: 1rem; height: 6px; }
+        .sat-fill { background: #4cd964; height: 6px; border-radius: 1rem; width: 0%; }
+        .risk-tag { position: absolute; top: 8px; right: 12px; font-size: 0.7rem; background: #aa2e4e80; padding: 0.2rem 0.5rem; border-radius: 20px; }
+        .badge { background: #00000088; border-radius: 20px; padding: 0.1rem 0.5rem; font-size: 0.7rem; }
+        .log-panel {
+            margin-top: 1.5rem;
+            background: #03050b;
+            border-radius: 1.2rem;
+            padding: 0.8rem;
+            max-height: 280px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .log-entry { border-bottom: 1px solid #2a2f3f; padding: 0.3rem 0; color: #cbd5f0; }
+        .section-title { font-weight: bold; margin: 0.5rem 0 0.2rem; font-size: 1.1rem; }
+        .flex-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+        footer { font-size: 0.7rem; text-align: center; margin-top: 1rem; opacity: 0.6; }
+        hr { border-color: #2e354a; }
+        .start-area {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="start-area">
+        <button class="btn btn-start" id="startGameBtn">🎮 开始新游戏</button>
+    </div>
+    <div class="profile-section">
+        <div class="broker-info">
+            <div class="info-card"><span>🎤 经纪人</span><span id="brokerName">——</span></div>
+            <div class="info-card"><span>💰 资金</span><span id="moneyVal">0</span> 万</div>
+            <div class="info-card"><span>🏆 威望</span><span id="prestigeVal">0</span></div>
+            <div class="info-card"><span>📅 天数</span><span id="dayVal">0</span></div>
+        </div>
+        <div class="action-points" id="actionPointsDisplay">⚡ 剩余行动: 0/3</div>
+    </div>
+
+    <div class="two-columns">
+        <div class="artists-panel">
+            <div class="section-title">✨ 旗下练习生 <span style="font-size:0.7rem;">(点击选中)</span></div>
+            <div id="artistsList" class="artists-grid"></div>
+        </div>
+
+        <div class="operations-panel">
+            <div class="section-title">🎬 经纪行动 (消耗1点行动)</div>
+            <div style="font-size:0.7rem; margin-bottom:8px;">当前选中: <strong id="selectedArtistName">无</strong></div>
+            <div class="flex-btns">
+                <button class="btn btn-sm" id="receiveResourceBtn">🎁 接资源</button>
+                <button class="btn btn-sm" id="hotSearchBtn">🔥 炒热度</button>
+                <button class="btn btn-sm" id="controlPublicBtn">🛡️ 控舆论</button>
+                <button class="btn btn-sm" id="preventScandalBtn">🚨 防塌房</button>
+                <button class="btn btn-sm btn-warning" id="fightResourceBtn">⚔️ 撕资源</button>
+                <button class="btn btn-sm" id="trainBtn">📚 培养提升</button>
+                <button class="btn btn-sm btn-danger" id="terminateBtn">💔 解约艺人</button>
+            </div>
+            <hr>
+            <div class="section-title">📢 公司/跳槽机会</div>
+            <div class="flex-btns">
+                <button class="btn btn-sm btn-primary" id="opportunityBtn">🎲 手动招募艺人</button>
+                <button class="btn btn-sm" id="sootheBtn">🍵 安抚团队</button>
+                <button class="btn btn-sm" id="endDayBtn">⏩ 结束今日</button>
+            </div>
+            <div style="margin-top: 12px; font-size:0.7rem; background:#00000033; border-radius:1rem; padding:6px;">
+                💡 每天最多3次行动，用完自动推进。<br>
+                🎲 随机事件优化：约40%概率“平平无奇的一天”（当天只此一条），其余60%概率触发1~3个其他事件。<br>
+                👥 艺人总数15人（含李煜东等）
+            </div>
+        </div>
+    </div>
+
+    <div class="log-panel" id="logPanel"></div>
+    <footer>🎲 每日事件独立 | “平淡日”概率提高且独占 | 金牌随时加人，新人需威望≥100</footer>
+</div>
+
+<script>
+    // ----- 完整15人名单 -----
+    const ALL_ARTISTS = [
+        "张桂源", "张函瑞", "王橹杰", "左奇函", "陈奕恒",
+        "杨博文", "张奕然", "陈思罕", "陈浚铭",
+        "李煜东", "魏子宸", "官俊臣", "王烁然", "聂玮辰", "杨涵博"
+    ];
+    
+    const PERSONALITY_BASE = {
+        "张桂源":80, "张函瑞":85, "王橹杰":70, "左奇函":75, "陈奕恒":82,
+        "杨博文":78, "张奕然":72, "陈思罕":68, "陈浚铭":88,
+        "李煜东":75, "魏子宸":75, "官俊臣":75, "王烁然":75, "聂玮辰":75, "杨涵博":75
+    };
+
+    class Artist {
+        constructor(name, pop, fans, biz, risk, sat, prestigeBonus) {
+            this.id = Date.now() + Math.random()*10000;
+            this.name = name;
+            this.popularity = pop;
+            this.fans = fans;
+            this.businessValue = biz;
+            this.risk = risk;
+            this.satisfaction = sat;
+            let base = PERSONALITY_BASE[name] || 75;
+            this.obedience = Math.min(100, Math.max(20, base + (prestigeBonus>50 ? 5 : (prestigeBonus<20 ? -5 : 0))));
+            this.hiddenScandal = false;
+        }
+    }
+
+    let game = {
+        brokerName: "",
+        identity: "",
+        money: 0,
+        prestige: 0,
+        day: 1,
+        artists: [],
+        selectedArtistId: null,
+        actionsLeft: 3,
+    };
+
+    function addLog(msg, isEvent = false) {
+        const logDiv = document.getElementById("logPanel");
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        if(isEvent) {
+            entry.innerHTML = `🎲 Day ${game.day} · ${msg}`;
+            entry.style.color = "#ffd966";
+        } else {
+            entry.innerHTML = `📌 Day ${game.day} · ${msg}`;
+        }
+        logDiv.appendChild(entry);
+        entry.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        while(logDiv.children.length > 80) logDiv.removeChild(logDiv.firstChild);
+    }
+
+    function refreshUI() {
+        document.getElementById("moneyVal").innerText = Math.floor(game.money);
+        document.getElementById("prestigeVal").innerText = game.prestige;
+        document.getElementById("dayVal").innerText = game.day;
+        document.getElementById("brokerName").innerHTML = `${game.brokerName} (${game.identity})`;
+        document.getElementById("actionPointsDisplay").innerHTML = `⚡ 剩余行动: ${game.actionsLeft}/3`;
+        
+        const container = document.getElementById("artistsList");
+        if(!container) return;
+        container.innerHTML = "";
+        for(let art of game.artists) {
+            const card = document.createElement("div");
+            card.className = `artist-card ${game.selectedArtistId === art.id ? 'selected' : ''}`;
+            card.style.borderLeftColor = art.risk > 65 ? "#e67e22" : "#4cd964";
+            card.innerHTML = `
+                <div class="artist-name">
+                    ${art.name}
+                    <span class="badge">${art.obedience>70?'🤝听话':(art.obedience>40?'🤔一般':'⚠️叛逆')}</span>
+                </div>
+                <div class="artist-stats">
+                    <div class="stat">🔥热度 ${art.popularity}</div>
+                    <div class="stat">👥粉丝 ${art.fans}w</div>
+                    <div class="stat">💼商务 ${art.businessValue}</div>
+                    <div class="stat">⚠️风险 ${art.risk}</div>
+                </div>
+                <div class="sat-bar"><div class="sat-fill" style="width: ${art.satisfaction}%;"></div></div>
+                <div style="font-size:0.7rem; margin-top:4px;">😊满意度 ${art.satisfaction}</div>
+                <div class="risk-tag">${art.hiddenScandal ? '💣暗雷' : '✨'}</div>
+            `;
+            card.addEventListener("click", () => {
+                game.selectedArtistId = art.id;
+                refreshUI();
+                document.getElementById("selectedArtistName").innerText = art.name;
+            });
+            container.appendChild(card);
+        }
+        if(game.selectedArtistId && !game.artists.find(a=>a.id===game.selectedArtistId)) {
+            game.selectedArtistId = game.artists[0]?.id || null;
+        }
+        if(game.artists.length>0 && !game.selectedArtistId) {
+            game.selectedArtistId = game.artists[0].id;
+        }
+        let sel = game.artists.find(a=>a.id===game.selectedArtistId);
+        document.getElementById("selectedArtistName").innerText = sel ? sel.name : "无";
+        
+        let btns = document.querySelectorAll(".operations-panel .btn");
+        let gameActive = game.artists.length > 0;
+        btns.forEach(btn => {
+            if(btn.id !== "endDayBtn") {
+                if(game.actionsLeft <= 0 || !gameActive) btn.disabled = true;
+                else btn.disabled = false;
+            }
+        });
+    }
+
+    function getSelectedArtist() {
+        if(!game.selectedArtistId) return null;
+        return game.artists.find(a => a.id === game.selectedArtistId);
+    }
+
+    function consumeAction() {
+        if(game.actionsLeft <= 0) {
+            addLog("今天已经没有行动次数了，请结束今日或等待自动推进。");
+            return false;
+        }
+        game.actionsLeft--;
+        refreshUI();
+        if(game.actionsLeft === 0) {
+            addLog("⏰ 今日行动次数已用完，自动进入第二天...");
+            endOfDay();
+        }
+        return true;
+    }
+
+    // ---------- 自动艺人加入 ----------
+    function autoNewArtistJoin() {
+        if(game.artists.length >= ALL_ARTISTS.length) return;
+        let canJoin = false;
+        let reason = "";
+        if(game.identity === "金牌经纪人") {
+            if(Math.random() < 0.15) {
+                canJoin = true;
+                reason = "金牌经纪人人脉广阔，有新人主动投靠";
+            }
+        } else if(game.identity === "新人经纪人") {
+            if(game.prestige >= 100 && Math.random() < 0.10) {
+                canJoin = true;
+                reason = "你的威望突破100，吸引了新人加盟";
+            }
+        }
+        if(canJoin) {
+            let available = ALL_ARTISTS.filter(n => !game.artists.some(a=>a.name===n));
+            if(available.length === 0) return;
+            let newName = available[Math.floor(Math.random() * available.length)];
+            addRandomArtist(newName, true);
+            addLog(`✨【自动加入】${reason}，${newName} 加入了你的团队！`, true);
+        }
+    }
+    
+    function addRandomArtist(name, isAuto = false) {
+        let pop = 20 + Math.floor(Math.random()*45);
+        let fans = 15 + Math.floor(Math.random()*50);
+        let biz = 18 + Math.floor(Math.random()*45);
+        let risk = 10 + Math.floor(Math.random()*35);
+        let sat = 60 + Math.floor(Math.random()*30);
+        let artist = new Artist(name, pop, fans, biz, risk, sat, game.prestige);
+        game.artists.push(artist);
+        if(!isAuto) addLog(`🌟 手动招募：${name} 加入！热度${pop} 粉丝${fans}w 商务${biz}`);
+        else addLog(`🎉 自动加入：${name} 加入！热度${pop} 粉丝${fans}w 商务${biz}`);
+        if(!game.selectedArtistId) game.selectedArtistId = artist.id;
+        refreshUI();
+    }
+
+    // ---------- 随机事件（单一事件，不包含“平平无奇的一天”）----------
+    function triggerRandomEventOnly() {
+        let target = game.artists.length > 0 ? game.artists[Math.floor(Math.random() * game.artists.length)] : null;
+        let r = Math.random();
+        
+        if (r < 0.02 && target) {
+            let gain = 15 + Math.floor(Math.random() * 15);
+            target.popularity = Math.min(100, target.popularity + gain);
+            target.fans += 20 + Math.floor(Math.random() * 30);
+            addLog(`✨✨✨ 【天降紫微星】${target.name} 的直拍在海外爆红，热度+${gain}，粉丝+${Math.floor(20+Math.random()*30)}w！`, true);
+        } else if (r < 0.05 && target) {
+            addLog(`💖 【CP粉狂欢】${target.name} 和队友的互动被拍到，CP超话冲上榜首，热度+5，粉丝+8w，但风险+3`, true);
+            target.popularity = Math.min(100, target.popularity + 5);
+            target.fans += 8;
+            target.risk = Math.min(100, target.risk + 3);
+        } else if (r < 0.08 && target) {
+            addLog(`🎤 【综艺感爆发】${target.name} 在综艺上即兴表现圈粉无数，热度+6，商务价值+5`, true);
+            target.popularity = Math.min(100, target.popularity + 6);
+            target.businessValue = Math.min(100, target.businessValue + 5);
+        } else if (r < 0.11 && target) {
+            addLog(`📱 【私生饭骚扰】${target.name} 被私生跟踪，行程受影响，风险+8，满意度-5`, true);
+            target.risk = Math.min(100, target.risk + 8);
+            target.satisfaction = Math.max(0, target.satisfaction - 5);
+        } else if (r < 0.14 && target) {
+            addLog(`🎂 【生日应援】${target.name} 生日当天粉丝集资做公益，好感度上升，热度+4，威望+2`, true);
+            target.popularity = Math.min(100, target.popularity + 4);
+            game.prestige += 2;
+        } else if (r < 0.17 && target) {
+            addLog(`👗 【时尚资源】${target.name} 被某轻奢品牌看中，商务价值+8`, true);
+            target.businessValue = Math.min(100, target.businessValue + 8);
+        } else if (r < 0.20 && target) {
+            let lose = 5 + Math.floor(Math.random() * 8);
+            addLog(`👎 【舞蹈失误】${target.name} 在舞台上出现明显失误，被全网吐槽，热度-${lose}，风险+6`, true);
+            target.popularity = Math.max(0, target.popularity - lose);
+            target.risk = Math.min(100, target.risk + 6);
+        } else if (r < 0.23 && target) {
+            addLog(`📖 【学霸人设】${target.name} 被曝学习成绩优秀，路人好感上升，热度+4，风险-3`, true);
+            target.popularity = Math.min(100, target.popularity + 4);
+            target.risk = Math.max(0, target.risk - 3);
+        } else if (r < 0.26) {
+            let moneyChange = 8 + Math.floor(Math.random() * 15);
+            if(Math.random() < 0.5) {
+                game.money += moneyChange;
+                addLog(`💰 【品牌赞助】公司收到一笔额外赞助，资金+${moneyChange}万`, true);
+            } else {
+                game.money = Math.max(0, game.money - moneyChange);
+                addLog(`💸 【税务稽查】公司被抽查账目，请会计花费${moneyChange}万，资金-${moneyChange}万`, true);
+            }
+        } else if (r < 0.29 && target) {
+            addLog(`🤝 【团魂时刻】${target.name} 主动帮助队友，团队满意度全体+3`, true);
+            for(let a of game.artists) a.satisfaction = Math.min(100, a.satisfaction + 3);
+        } else if (r < 0.32 && target) {
+            addLog(`💬 【直播口误】${target.name} 直播时说错话，引发争议，热度-3，风险+9`, true);
+            target.popularity = Math.max(0, target.popularity - 3);
+            target.risk = Math.min(100, target.risk + 9);
+        } else if (r < 0.35 && target) {
+            addLog(`🎵 【翻唱出圈】${target.name} 的翻唱视频被原唱转发，热度+9，粉丝+12w`, true);
+            target.popularity = Math.min(100, target.popularity + 9);
+            target.fans += 12;
+        } else if (r < 0.38 && target) {
+            addLog(`🏥 【突发伤病】${target.name} 练习受伤，需要休息，热度-4，满意度-6`, true);
+            target.popularity = Math.max(0, target.popularity - 4);
+            target.satisfaction = Math.max(0, target.satisfaction - 6);
+        } else if (r < 0.41) {
+            addLog(`📰 【对家买黑热搜】对家经纪公司花钱黑你，全员风险+4`, true);
+            for(let a of game.artists) a.risk = Math.min(100, a.risk + 4);
+        } else if (r < 0.44 && target) {
+            addLog(`🎁 【粉丝送礼】${target.name} 收到粉丝贵重礼物，公司责令退回，满意度-3`, true);
+            target.satisfaction = Math.max(0, target.satisfaction - 3);
+        } else if (r < 0.47 && target) {
+            addLog(`🌟 【杂志封面】${target.name} 登上二线杂志封面，商务+6，热度+4`, true);
+            target.businessValue = Math.min(100, target.businessValue + 6);
+            target.popularity = Math.min(100, target.popularity + 4);
+        } else if (r < 0.50 && target) {
+            addLog(`😢 【卖惨翻车】${target.name} 卖惨被扒出真相，路人反感，热度-7，风险+8`, true);
+            target.popularity = Math.max(0, target.popularity - 7);
+            target.risk = Math.min(100, target.risk + 8);
+        } else if (r < 0.53 && target) {
+            addLog(`🍀 【偶遇大导演】${target.name} 在咖啡厅被知名导演看中，商务+10，威望+3`, true);
+            target.businessValue = Math.min(100, target.businessValue + 10);
+            game.prestige += 3;
+        } else if (r < 0.56) {
+            addLog(`📉 【行业寒冬】广告投放减少，全体商务价值-3`, true);
+            for(let a of game.artists) a.businessValue = Math.max(0, a.businessValue - 3);
+        } else if (r < 0.59 && target) {
+            addLog(`🧠 【情商课成果】${target.name} 近期情商提升，风险-5，满意度+4`, true);
+            target.risk = Math.max(0, target.risk - 5);
+            target.satisfaction = Math.min(100, target.satisfaction + 4);
+        } else if (r < 0.62 && target) {
+            addLog(`📸 【路透神图】${target.name} 的路透照出圈，热度+6，粉丝+6w`, true);
+            target.popularity = Math.min(100, target.popularity + 6);
+            target.fans += 6;
+        } else if (r < 0.65 && target) {
+            addLog(`🔞 【未成年时期旧照】${target.name} 早年非主流照片被翻出，网友玩梗，热度+2，风险+3`, true);
+            target.popularity = Math.min(100, target.popularity + 2);
+            target.risk = Math.min(100, target.risk + 3);
+        } else if (r < 0.68 && target) {
+            addLog(`🎮 【游戏直播吸粉】${target.name} 直播打游戏展现反差萌，粉丝+8w，热度+5`, true);
+            target.fans += 8;
+            target.popularity = Math.min(100, target.popularity + 5);
+        } else if (r < 0.71 && target) {
+            addLog(`🚗 【违规停车争议】${target.name} 被拍到违规停车，道歉后平息，风险+4，威望-2`, true);
+            target.risk = Math.min(100, target.risk + 4);
+            game.prestige = Math.max(0, game.prestige - 2);
+        } else if (r < 0.74) {
+            addLog(`🎉 【粉丝突破百万】某位艺人粉丝数突破百万大关，全体士气提升，满意度+2`, true);
+            for(let a of game.artists) a.satisfaction = Math.min(100, a.satisfaction + 2);
+        } else if (r < 0.77 && target) {
+            addLog(`🏅 【公益大使】${target.name} 被选为公益项目大使，威望+4，风险-3`, true);
+            game.prestige += 4;
+            target.risk = Math.max(0, target.risk - 3);
+        } else if (r < 0.80 && target) {
+            addLog(`💔 【唯粉与CP粉大战】${target.name} 的粉丝内部互撕，路人观感差，热度-2，满意度-4`, true);
+            target.popularity = Math.max(0, target.popularity - 2);
+            target.satisfaction = Math.max(0, target.satisfaction - 4);
+        } else if (r < 0.83) {
+            addLog(`👔 【高层视察】公司高层来视察，你精心准备，威望+3`, true);
+            game.prestige += 3;
+        } else if (r < 0.86 && target) {
+            addLog(`📱 【手机代言】${target.name} 接到手机品牌推广，资金+15w，商务+5`, true);
+            game.money += 15;
+            target.businessValue = Math.min(100, target.businessValue + 5);
+        } else if (r < 0.89 && target) {
+            addLog(`🎤 【KTV被拍】${target.name} 在KTV被拍到和异性同行，恋爱传闻，风险+12`, true);
+            target.risk = Math.min(100, target.risk + 12);
+        } else if (r < 0.92) {
+            addLog(`📈 【平台推荐】某平台算法推荐了你的艺人，全体热度+2`, true);
+            for(let a of game.artists) a.popularity = Math.min(100, a.popularity + 2);
+        } else if (r < 0.95 && target) {
+            addLog(`🍻 【深夜聚餐】${target.name} 被拍到深夜和工作人员聚餐，无事发生，但粉丝虚惊一场`, true);
+        } else {
+            // 原来最后剩下的区间给了“平平无奇的一天”，但我们已经单独处理，这里不再出现。
+            // 为了避免空事件，给一个极低概率的普通正面事件
+            addLog(`✨ 【小确幸】今天没有任何负面新闻，团队气氛平稳。`, true);
+        }
+        
+        for(let a of game.artists) {
+            a.popularity = Math.min(100, Math.max(0, a.popularity));
+            a.fans = Math.max(0, a.fans);
+            a.businessValue = Math.min(100, Math.max(0, a.businessValue));
+            a.risk = Math.min(100, Math.max(0, a.risk));
+            a.satisfaction = Math.min(100, Math.max(0, a.satisfaction));
+        }
+        game.money = Math.max(0, game.money);
+        game.prestige = Math.max(0, game.prestige);
+        refreshUI();
+    }
+
+    // 新的事件分发：先判断是否平淡日（40%概率），如果是则只记录平淡日志；否则触发1~3个其他事件
+    function dailyEventDispatcher() {
+        const isPlainDay = Math.random() < 0.4;   // 40% 概率为“平平无奇的一天”
+        if (isPlainDay) {
+            addLog(`✨ 【平平无奇的一天】没有特别的事情发生，但这也是娱乐圈的常态。`, true);
+            return;
+        }
+        // 非平淡日：触发 1~3 个随机事件
+        let eventCount = 1 + Math.floor(Math.random() * 3);
+        for(let i=0; i<eventCount; i++) {
+            triggerRandomEventOnly();
+        }
+    }
+    
+    function endOfDay() {
+        game.day++;
+        let baseIncome = 2 + Math.floor(Math.random()*8);
+        game.money += baseIncome;
+        addLog(`📅 新的一天，基础收入+${baseIncome}万`);
+        
+        dailyEventDispatcher();      // 新的事件逻辑
+        
+        autoNewArtistJoin();         // 自动加入艺人
+        
+        for(let a of game.artists) {
+            if(Math.random()<0.25) a.risk = Math.min(100, Math.max(0, a.risk + (Math.random()<0.5? -2 : 3)));
+            if(a.hiddenScandal && Math.random()<0.1 && a.risk>50) {
+                addLog(`💣 ${a.name} 的隐藏黑料突然被曝光！热度-15，风险+25`, true);
+                a.popularity = Math.max(0, a.popularity-15);
+                a.risk = Math.min(100, a.risk+25);
+                a.hiddenScandal = false;
+            }
+        }
+        
+        game.actionsLeft = 3;
+        refreshUI();
+        addLog(`✨ 行动点已刷新。当前资金:${Math.floor(game.money)}w 威望:${game.prestige}`);
+    }
+    
+    function unequalPenalty(givenArtist) {
+        let penalty = 3 + Math.floor(Math.random() * 5);
+        let unhappy = [];
+        for(let a of game.artists) {
+            if(a.id !== givenArtist.id) {
+                a.satisfaction = Math.max(0, a.satisfaction - penalty);
+                if(a.satisfaction < 25) unhappy.push(a.name);
+            }
+        }
+        if(unhappy.length) addLog(`⚖️ 资源不均，${unhappy.join(",")} 满意度↓${penalty}`);
+        for(let a of game.artists) {
+            if(a.satisfaction < 18 && Math.random()<0.3) {
+                addLog(`💢 ${a.name} 因资源太少公开抱怨，热度-2，满意度再降3。`);
+                a.popularity = Math.max(0, a.popularity-2);
+                a.satisfaction = Math.max(0, a.satisfaction-3);
+            } else if(a.satisfaction < 15 && Math.random()<0.2) {
+                addLog(`🍷 ${a.name} 私下讨好你，希望下次资源倾斜（潜规则暗示）。`);
+            }
+        }
+        refreshUI();
+    }
+    
+    // ---------- 经纪操作（保持不变）----------
+    function receiveResource() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) { addLog("请先选中一名练习生"); return; }
+        let level = prompt("资源等级: S+ / A / B / C", "A");
+        let levels = { "S+":{cost:14, gainPop:16, gainFan:22, gainMoney:42, riskBase:40},
+                       "A":{cost:8, gainPop:11, gainFan:15, gainMoney:26, riskBase:24},
+                       "B":{cost:3, gainPop:6, gainFan:8, gainMoney:12, riskBase:14},
+                       "C":{cost:1, gainPop:3, gainFan:4, gainMoney:6, riskBase:9} };
+        let key = level.toUpperCase();
+        if(!levels[key]) { addLog("无效等级，请输入 S+,A,B,C"); return; }
+        let res = levels[key];
+        if(game.money < res.cost) { addLog(`资金不足，需要 ${res.cost} 万`); return; }
+        game.money -= res.cost;
+        let crashChance = (artist.risk/100)*0.6 + (res.riskBase/100)*0.4;
+        if(Math.random() < crashChance) {
+            let lossPop = Math.floor(res.gainPop * 0.8);
+            artist.popularity = Math.max(0, artist.popularity - lossPop);
+            artist.fans = Math.max(0, artist.fans - res.gainFan*0.5);
+            addLog(`💥 翻车！${artist.name} 的${key}资源口碑暴跌，热度-${lossPop}，粉丝流失！风险+8`);
+            artist.risk = Math.min(100, artist.risk+8);
+        } else {
+            let extra = Math.random()<0.2 ? "大成功！" : "";
+            let gainPopMul = Math.random()<0.15 ? 1.4 : 1;
+            let finalPop = Math.floor(res.gainPop * gainPopMul);
+            artist.popularity = Math.min(100, artist.popularity + finalPop);
+            artist.fans += res.gainFan;
+            artist.businessValue = Math.min(100, artist.businessValue + Math.floor(res.gainPop/2));
+            game.money += res.gainMoney;
+            addLog(`🎉 ${extra}${artist.name} 拿下${key}资源！热度+${finalPop}，粉丝+${res.gainFan}w，赚${res.gainMoney}万`);
+            artist.satisfaction = Math.min(100, artist.satisfaction+5);
+        }
+        unequalPenalty(artist);
+        refreshUI();
+    }
+    
+    function hotSearch() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) { addLog("选中艺人"); return; }
+        let cost = 10 + Math.floor(Math.random()*5);
+        if(game.money < cost) { addLog(`资金不足 ${cost} 万`); return; }
+        game.money -= cost;
+        let heatGain = 5 + Math.floor(Math.random()*14);
+        let riskUp = 3 + Math.floor(Math.random()*16);
+        if(Math.random()<0.25) {
+            heatGain += 8;
+            addLog(`🔥🔥 热搜爆了！${artist.name} 热度+${heatGain}，但风险+${riskUp}，话题出圈。`);
+        } else if(Math.random()<0.2) {
+            addLog(`⚠️ 热搜翻车，被对家带节奏，热度只+2，风险+${riskUp+5}`);
+            heatGain = 2;
+            riskUp += 5;
+        } else {
+            addLog(`🔥 普通热搜，${artist.name} 热度+${heatGain}，风险+${riskUp}`);
+        }
+        artist.popularity = Math.min(100, artist.popularity + heatGain);
+        artist.risk = Math.min(100, artist.risk + riskUp);
+        refreshUI();
+    }
+    
+    function controlPublic() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) return;
+        let cost = 6 + Math.floor(Math.random()*6);
+        if(game.money < cost) { addLog(`资金不足`); return; }
+        game.money -= cost;
+        let reduce = 8 + Math.floor(Math.random()*22);
+        artist.risk = Math.max(0, artist.risk - reduce);
+        addLog(`🛡️ 控评成功，${artist.name} 风险值-${reduce}`);
+        refreshUI();
+    }
+    
+    function preventScandal() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) return;
+        let cost = 9 + Math.floor(Math.random()*8);
+        if(game.money < cost) return;
+        game.money -= cost;
+        let eff = 10 + Math.floor(Math.random()*20);
+        artist.risk = Math.max(0, artist.risk - eff);
+        if(artist.hiddenScandal && Math.random()<0.5) {
+            artist.hiddenScandal = false;
+            addLog(`🚨 压住了${artist.name} 的暗雷！避免了塌房。`);
+        } else {
+            addLog(`🔍 防塌房行动，${artist.name} 风险度-${eff}`);
+        }
+        refreshUI();
+    }
+    
+    function fightResource() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) return;
+        let cost = 18;
+        if(game.money < cost) { addLog(`撕资源资金不足`); return; }
+        let successRate = 0.3 + (artist.popularity/100)*0.3 + (game.prestige/200);
+        if(Math.random() < successRate) {
+            game.money -= cost;
+            let reward = 40 + Math.floor(Math.random()*50);
+            let heatBoost = 8 + Math.floor(Math.random()*18);
+            game.money += reward;
+            artist.popularity = Math.min(100, artist.popularity + heatBoost);
+            artist.businessValue = Math.min(100, artist.businessValue + 12);
+            game.prestige += 5;
+            addLog(`🏆 撕资源成功！${artist.name} 拿到S级代言，入账${reward}万，热度+${heatBoost}，威望+5`);
+        } else {
+            game.money -= cost;
+            game.prestige = Math.max(0, game.prestige-6);
+            artist.satisfaction = Math.max(0, artist.satisfaction-8);
+            addLog(`💔 撕资源失败，损失20w定金，威望-6，${artist.name} 满意度-8`);
+        }
+        refreshUI();
+    }
+    
+    function train() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) return;
+        let cost = 5;
+        if(game.money < cost) return;
+        game.money -= cost;
+        let gain = 4 + Math.floor(Math.random()*12);
+        let type = Math.floor(Math.random()*3);
+        if(type===0) {
+            artist.popularity = Math.min(100, artist.popularity+gain);
+            addLog(`📚 ${artist.name} 训练提升，热度+${gain}`);
+        } else if(type===1) {
+            artist.businessValue = Math.min(100, artist.businessValue+gain);
+            addLog(`💪 ${artist.name} 塑形+商务礼仪，商务价值+${gain}`);
+        } else {
+            artist.risk = Math.max(0, artist.risk-gain);
+            addLog(`🧘 ${artist.name} 情商课，风险-${gain}`);
+        }
+        refreshUI();
+    }
+    
+    function terminate() {
+        if(!consumeAction()) return;
+        let artist = getSelectedArtist();
+        if(!artist) return;
+        let cost = 20 + Math.floor(artist.popularity/3);
+        if(game.money < cost) { addLog(`违约金需${cost}万，资金不足`); return; }
+        if(confirm(`解约 ${artist.name}？支付 ${cost} 万违约金`)) {
+            game.money -= cost;
+            game.artists = game.artists.filter(a=>a.id !== artist.id);
+            if(game.selectedArtistId === artist.id) game.selectedArtistId = game.artists[0]?.id || null;
+            addLog(`💔 ${artist.name} 已解约，支付${cost}万违约金`);
+            refreshUI();
+        }
+    }
+    
+    function sootheTeam() {
+        if(!consumeAction()) return;
+        let cost = 8;
+        if(game.money < cost) { addLog(`没钱安抚`); return; }
+        game.money -= cost;
+        for(let a of game.artists) a.satisfaction = Math.min(100, a.satisfaction+8);
+        addLog(`🍵 团建+谈心，全体满意度+8`);
+        refreshUI();
+    }
+    
+    function manualOpportunity() {
+        if(!consumeAction()) return;
+        let available = ALL_ARTISTS.filter(n => !game.artists.some(a=>a.name===n));
+        if(available.length===0) { addLog("所有练习生都已签约"); return; }
+        let newName = available[Math.floor(Math.random()*available.length)];
+        if(confirm(`手动招募 ${newName}？会消耗一次行动。`)) {
+            addRandomArtist(newName, false);
+        } else {
+            addLog(`❌ 放弃了招募 ${newName}`);
+        }
+        refreshUI();
+    }
+    
+    function forceEndDay() {
+        if(game.actionsLeft === 3) {
+            addLog("还没有进行任何行动，确定要直接结束今天吗？");
+        }
+        addLog("⏩ 主动结束今日，进入第二天。");
+        endOfDay();
+        refreshUI();
+    }
+    
+    // ---------- 随机开局 ----------
+    function randomStart() {
+        let isGold = Math.random() < 0.5;
+        if(isGold) {
+            game.identity = "金牌经纪人";
+            game.brokerName = "金牌经纪人·" + (Math.random()<0.5?"陈岚":"苏姐");
+            game.money = 180 + Math.floor(Math.random()*80);
+            game.prestige = 70 + Math.floor(Math.random()*25);
+            let count = 2 + Math.floor(Math.random()*2);
+            let pool = [...ALL_ARTISTS];
+            let newArtists = [];
+            for(let i=0; i<count && pool.length; i++) {
+                let idx = Math.floor(Math.random()*pool.length);
+                let name = pool.splice(idx,1)[0];
+                let pop = 45 + Math.floor(Math.random()*40);
+                let fans = 40 + Math.floor(Math.random()*50);
+                let biz = 35 + Math.floor(Math.random()*40);
+                let risk = 5 + Math.floor(Math.random()*22);
+                let sat = 65 + Math.floor(Math.random()*30);
+                let artist = new Artist(name, pop, fans, biz, risk, sat, game.prestige);
+                newArtists.push(artist);
+            }
+            game.artists = newArtists;
+            addLog(`🏅 金牌经纪人开局！初始资金${game.money}w，威望${game.prestige}，自带${game.artists.length}位练习生。`);
+        } else {
+            game.identity = "新人经纪人";
+            game.brokerName = "新人经纪人·" + (Math.random()<0.5?"小林":"阿珍");
+            game.money = 40 + Math.floor(Math.random()*40);
+            game.prestige = 20 + Math.floor(Math.random()*25);
+            let pool = [...ALL_ARTISTS];
+            let name = pool[Math.floor(Math.random()*pool.length)];
+            let pop = 25 + Math.floor(Math.random()*35);
+            let fans = 18 + Math.floor(Math.random()*40);
+            let biz = 15 + Math.floor(Math.random()*30);
+            let risk = 8 + Math.floor(Math.random()*30);
+            let sat = 50 + Math.floor(Math.random()*35);
+            let artist = new Artist(name, pop, fans, biz, risk, sat, game.prestige);
+            game.artists = [artist];
+            addLog(`🌱 新人经纪人开局！资金${game.money}w，威望${game.prestige}，带着${name} 打拼。`);
+        }
+        game.day = 1;
+        game.actionsLeft = 3;
+        game.selectedArtistId = game.artists[0]?.id || null;
+        const logDiv = document.getElementById("logPanel");
+        logDiv.innerHTML = "";
+        refreshUI();
+        addLog(`🎲 新游戏开始！约40%天数为平淡日，其余天数会有1~3个随机事件。`);
+    }
+    
+    function bindEvents() {
+        document.getElementById("startGameBtn").onclick = () => { randomStart(); };
+        document.getElementById("receiveResourceBtn").onclick = receiveResource;
+        document.getElementById("hotSearchBtn").onclick = hotSearch;
+        document.getElementById("controlPublicBtn").onclick = controlPublic;
+        document.getElementById("preventScandalBtn").onclick = preventScandal;
+        document.getElementById("fightResourceBtn").onclick = fightResource;
+        document.getElementById("trainBtn").onclick = train;
+        document.getElementById("terminateBtn").onclick = terminate;
+        document.getElementById("sootheBtn").onclick = sootheTeam;
+        document.getElementById("opportunityBtn").onclick = manualOpportunity;
+        document.getElementById("endDayBtn").onclick = forceEndDay;
+    }
+    
+    function init() {
+        bindEvents();
+        document.getElementById("brokerName").innerHTML = "未开始";
+        document.getElementById("moneyVal").innerText = "0";
+        document.getElementById("prestigeVal").innerText = "0";
+        document.getElementById("dayVal").innerText = "0";
+        document.getElementById("actionPointsDisplay").innerHTML = "⚡ 剩余行动: 0/3";
+        document.getElementById("artistsList").innerHTML = '<div style="text-align:center; padding:2rem;">点击“开始新游戏”</div>';
+        addLog("点击上方【开始新游戏】按钮，随机生成经纪人身份和艺人阵容。");
+    }
+    
+    init();
+</script>
+</body>
+</html>
